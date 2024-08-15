@@ -5,11 +5,16 @@
 ## Features
 
 - Resize images while maintaining aspect ratio.
+- Custom Resize while maintaining aspect ratio.
 - Add watermarks to images with adjustable positions.
 - Optimize images for web use by adjusting quality.
 - Remove EXIF metadata from images.
-- Preview images with watermarks before saving.
+- View EXIF metadata in your images.
+- Preview images before saving.
 - Browse and select input files, output directories, and watermark images using file dialogs.
+- **AND MORE**
+  
+[View releases](https://github.com/Thymester/ImageRevise/releases) for more information!
 
 ## Requirements
 
