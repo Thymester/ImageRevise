@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk, ExifTags
+import threading
 import os
 
 def update_custom_size_visibility(*args):
@@ -21,7 +22,6 @@ class Tooltip:
         self.widget = widget
         self.text = text
         self.tooltip = None
-
         self.widget.bind("<Enter>", self.show_tooltip)
         self.widget.bind("<Leave>", self.hide_tooltip)
 
@@ -43,33 +43,15 @@ class Tooltip:
             self.tooltip = None
 
 def add_watermark(image, watermark, position='center', watermark_size=(128, 128)):
-    """
-    Add a watermark to an image at a specified position with a custom size.
-    
-    Args:
-        image (PIL.Image): The image to which the watermark will be added.
-        watermark (PIL.Image): The watermark image.
-        position (str): Position where the watermark should be placed ('center', 'bottom_right', 'bottom_left', 'top_right', 'top_left').
-        watermark_size (tuple): Size of the watermark (width, height).
-
-    Returns:
-        PIL.Image: The image with the watermark added.
-    """
+    """Add a watermark to an image at a specified position with a custom size."""
     if watermark:
-        # Resize watermark
         watermark = watermark.resize(watermark_size, Image.LANCZOS)
-        
-        # Create a new image with padding for watermark
         padding = 10
         padded_watermark = Image.new('RGBA', (watermark_size[0] + 2 * padding, watermark_size[1] + 2 * padding), (255, 255, 255, 0))
         padded_watermark.paste(watermark, (padding, padding))
-        
-        # Add watermark to the main image
         padded_watermark = padded_watermark.convert("RGBA")
         width, height = image.size
         wm_width, wm_height = padded_watermark.size
-        
-        # Determine position
         if position == 'center':
             position = ((width - wm_width) // 2, (height - wm_height) // 2)
         elif position == 'bottom_right':
@@ -80,31 +62,16 @@ def add_watermark(image, watermark, position='center', watermark_size=(128, 128)
             position = (width - wm_width, 0)
         elif position == 'top_left':
             position = (0, 0)
-        
         image.paste(padded_watermark, position, padded_watermark)
     return image
 
 def resize_image(input_path, output_path, size, watermark_img=None, watermark_size=(128, 128), keep_aspect_ratio=True):
-    """
-    Resize an image and optionally add a watermark with a custom size.
-    
-    Args:
-        input_path (str): Path to the input image file.
-        output_path (str): Path to save the resized image.
-        size (tuple): New size for the image (width, height).
-        watermark_img (PIL.Image): Optional watermark image.
-        watermark_size (tuple): Size of the watermark (width, height).
-        keep_aspect_ratio (bool): Whether to keep the original aspect ratio.
-    """
+    """Resize an image and optionally add a watermark with a custom size."""
     with Image.open(input_path) as img:
         if img.mode == 'RGBA':
             img = img.convert('RGB')
-        
-        # Get the original size and aspect ratio
         original_width, original_height = img.size
         original_aspect_ratio = original_width / original_height
-        
-        # Determine new size while maintaining aspect ratio
         new_width, new_height = size
         if keep_aspect_ratio:
             new_aspect_ratio = new_width / new_height
@@ -112,7 +79,6 @@ def resize_image(input_path, output_path, size, watermark_img=None, watermark_si
                 new_width = int(new_height * original_aspect_ratio)
             else:
                 new_height = int(new_width / original_aspect_ratio)
-        
         img = img.resize((new_width, new_height), Image.LANCZOS)
         img = add_watermark(img, watermark_img, watermark_position_var.get(), watermark_size=(int(watermark_width_var.get()), int(watermark_height_var.get())))
         img.save(output_path, format=format_var.get().upper(), quality=quality_var.get() if format_var.get() == 'JPEG' else None)
@@ -120,29 +86,17 @@ def resize_image(input_path, output_path, size, watermark_img=None, watermark_si
             remove_metadata(output_path)
 
 def optimize_image(input_path, output_path, quality=85):
-    """
-    Optimize an image for web use by adjusting its quality.
-    
-    Args:
-        input_path (str): Path to the input image file.
-        output_path (str): Path to save the optimized image.
-        quality (int): Quality level for the JPEG image (1-100).
-    """
+    """Optimize an image for web use by adjusting its quality."""
     with Image.open(input_path) as img:
         if img.mode == 'RGBA':
             img = img.convert('RGB')
         img.save(output_path, optimize=True, quality=quality)
 
 def remove_metadata(image_path):
-    """
-    Remove EXIF metadata from an image.
-    
-    Args:
-        image_path (str): Path to the image file.
-    """
+    """Remove EXIF metadata from an image."""
     with Image.open(image_path) as img:
         if img.info:
-            img.info.pop('exif', None)  # Remove EXIF data
+            img.info.pop('exif', None)
         img.save(image_path)
 
 def browse_file():
@@ -178,7 +132,6 @@ def view_metadata():
     if not os.path.isfile(input_path):
         messagebox.showerror("Error", "Please select a valid image file.")
         return
-
     try:
         with Image.open(input_path) as img:
             exif_data = img._getexif()
@@ -190,51 +143,48 @@ def view_metadata():
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-def process_images():
-    """Process the selected image according to user settings."""
+def process_images_thread():
+    """Thread function to process images."""
     input_path = entry_input_path.get()
     output_dir = entry_output_dir.get()
     watermark_path = entry_watermark.get()
-
     if not os.path.isfile(input_path):
-        messagebox.showerror("Error", "Please select a valid image file.")
+        root.after(0, lambda: messagebox.showerror("Error", "Please select a valid image file."))
         return
     if not os.path.isdir(output_dir):
-        messagebox.showerror("Error", "Please select a valid output directory.")
+        root.after(0, lambda: messagebox.showerror("Error", "Please select a valid output directory."))
         return
-
     size_name = size_var.get()
     if size_name == 'Custom':
         size = (int(custom_width_var.get()), int(custom_height_var.get()))
     else:
         size = sizes[size_name]
-
-    # Load watermark if provided
     watermark_img = Image.open(watermark_path) if os.path.isfile(watermark_path) else None
-
     try:
         output_filename = f"{os.path.splitext(os.path.basename(input_path))[0]}_{size_name}.{format_var.get().lower()}"
         output_path = os.path.join(output_dir, output_filename)
-
-        print(f"Resizing {input_path} to {size_name} size...")
-        resize_image(
-            input_path,
-            output_path,
-            size,
-            watermark_img,
-            watermark_size=(int(watermark_width_var.get()), int(watermark_height_var.get())),
-            keep_aspect_ratio=keep_aspect_ratio_var.get()
-        )
-        print(f"Saving resized image to {output_path}")
-
-        # Optimize the image for web use
+        resize_image(input_path, output_path, size, watermark_img, watermark_size=(int(watermark_width_var.get()), int(watermark_height_var.get())), keep_aspect_ratio=keep_aspect_ratio_var.get())
         optimized_path = os.path.join(output_dir, f"{os.path.splitext(os.path.basename(input_path))[0]}_{size_name}_optimized.{format_var.get().lower()}")
-        print(f"Optimizing {output_filename}...")
         optimize_image(output_path, optimized_path)
-
-        messagebox.showinfo("Success", "Images processed successfully!")
+        root.after(0, lambda: messagebox.showinfo("Success", "Images processed successfully!"))
+        root.after(0, update_label_to_done)
     except Exception as e:
-        messagebox.showerror("Error", f"An error occurred: {e}")
+        root.after(0, lambda: messagebox.showerror("Error", f"An error occurred: {e}"))
+
+def process_images():
+    """Start processing images in a separate thread."""
+    threading.Thread(target=process_images_thread).start()
+
+def update_label_to_done():
+    """Clear the text of the label indicating that image processing is done."""
+    image_processing_label.config(text="Processing Done")
+
+def start_image_processing():
+    """Start the image processing in a new thread."""
+    global image_processing_label
+    image_processing_label = tk.Label(root, text="The image is now processing...please standby")
+    image_processing_label.grid(row=13, column=1, sticky=tk.W)
+    threading.Thread(target=process_images_thread, daemon=True).start()
 
 def preview_image():
     """Preview the resized image with watermark in the GUI."""
@@ -295,8 +245,8 @@ entry_input_path = tk.Entry(root, width=50)
 entry_input_path.grid(row=0, column=1, padx=5, pady=5)
 browse_input_button = tk.Button(root, text="Browse", command=browse_file)
 browse_input_button.grid(row=0, column=2, padx=5, pady=5)
-Tooltip(browse_input_button, "Browse for an image file.")
-Tooltip(entry_input_path, "Enter the path of the image file here.")
+Tooltip(browse_input_button, "Browse for an image file to edit.")
+Tooltip(entry_input_path, "Enter the path of the image file here\nOr use the browse button for easier pathing.")
 
 # Output directory
 tk.Label(root, text="Output Directory:").grid(row=1, column=0, sticky=tk.W)
@@ -305,7 +255,7 @@ entry_output_dir.grid(row=1, column=1, padx=5, pady=5)
 browse_output_button = tk.Button(root, text="Browse", command=browse_directory)
 browse_output_button.grid(row=1, column=2, padx=5, pady=5)
 Tooltip(browse_output_button, "Browse for an output directory.")
-Tooltip(entry_output_dir, "Enter the directory where processed images will be saved.")
+Tooltip(entry_output_dir, "Enter the directory where processed images will be saved\nOr use the browse button for easier pathing.")
 
 # Watermark
 tk.Label(root, text="Watermark Image:").grid(row=2, column=0, sticky=tk.W)
@@ -314,7 +264,7 @@ entry_watermark.grid(row=2, column=1, padx=5, pady=5)
 browse_watermark_button = tk.Button(root, text="Browse", command=browse_watermark)
 browse_watermark_button.grid(row=2, column=2, padx=5, pady=5)
 Tooltip(browse_watermark_button, "Browse for a watermark image.")
-Tooltip(entry_watermark, "Enter the path of the watermark image here.")
+Tooltip(entry_watermark, "Enter the path of the watermark image here\nOr use the browse button for easier pathing.")
 
 # Watermark size
 tk.Label(root, text="Watermark Width:").grid(row=3, column=0, sticky=tk.W)
@@ -361,7 +311,7 @@ tk.Label(root, text="Format:").grid(row=7, column=0, sticky=tk.W)
 format_var = tk.StringVar(value='JPEG')
 format_menu = tk.OptionMenu(root, format_var, 'JPEG', 'PNG')
 format_menu.grid(row=7, column=1, padx=5, pady=5)
-Tooltip(format_menu, "Select the format for the output image.")
+Tooltip(format_menu, "Select your output format:\nJPEG is used for reducing file size/image quality—the reduction can be as much as 90%\nPNG is used for increasing file size/image quality—the increase can be as much as 90%")
 
 # Quality
 tk.Label(root, text="Quality:").grid(row=8, column=0, sticky=tk.W)
@@ -383,7 +333,7 @@ keep_metadata_checkbox.grid(row=10, column=0, columnspan=2, padx=5, pady=5)
 Tooltip(keep_metadata_checkbox, "Uncheck this box to remove the information about your visual file.")
 
 # Buttons
-process_images_button = tk.Button(root, text="Process Images", command=process_images)
+process_images_button = tk.Button(root, text="Process Images", command=start_image_processing)
 process_images_button.grid(row=11, column=0, columnspan=2, padx=5, pady=5)
 
 preview_image_button = tk.Button(root, text="Preview Image", command=preview_image)
@@ -395,7 +345,7 @@ view_metadata_button.grid(row=12, column=0, columnspan=2, padx=5, pady=5)
 Tooltip(view_metadata_button, "Click to view metadata of the selected image.")
 
 # Preview frame
-preview_frame = tk.Frame(root)
+preview_frame = tk.Frame(root, bg='white')
 preview_frame.grid(row=14, column=0, columnspan=6, rowspan=6, padx=5, pady=5)
 
 # Initialize custom size visibility
