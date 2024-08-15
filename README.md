@@ -22,7 +22,7 @@
 1. Clone the repository:
 
     ```bash
-    git clone https://github.com/your-username/imagine-revise.git
+    git clone https://github.com/Thymester/imagine-revise.git
     ```
 
 2. Navigate to the project directory:
@@ -65,7 +65,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contributing
 
-Feel free to fork the repository and submit pull requests. For bug reports or feature requests, please use the [Issues](https://github.com/Thymester/imagerevise/issues) page.
+Feel free to fork the repository and submit pull requests. For bug reports or feature requests, please use the [Issues](https://github.com/your-username/image-revise/issues) page.
 
 ## Acknowledgements
 
