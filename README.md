@@ -88,7 +88,3 @@ Feel free to open issues or submit pull requests to contribute to this project. 
 
 - **Pillow** for image processing.
 - **Tkinter** for the graphical user interface.
-
----
-
-Feel free to modify this README to better fit your project or preferences.
